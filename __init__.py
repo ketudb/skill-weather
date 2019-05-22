@@ -139,9 +139,9 @@ class OWMApi(Api):
         req_hash = hash(json.dumps(data, sort_keys=True))
         cache = self.query_cache.get(req_hash, (0, None))
 
-        # Use cached response if value exists and was fetched within 15 min
+        # Use cached response if value exists and was fetched within 60 min
         now = time.monotonic()
-        if now > (cache[0] + 15 * MINUTES) or cache[1] is None:
+        if now > (cache[0] + 60 * MINUTES) or cache[1] is None:
             resp = super().request(data)
             self.query_cache[req_hash] = (now, resp)
         else:
@@ -332,23 +332,22 @@ class WeatherSkill(MycroftSkill):
                            '({})'.format(repr(e)))
 
     def schedule_for_daily_use(self):
-        # Assume the user has a semi-regular schedule.  Whenever this method
-        # is called, it will establish a 45 minute window of pre-cached
-        # weather info for the next day allowing for snappy responses to the
-        # daily query.
+        # Schedule an event to grab the weather every 60 minutes, which is
+        # the cache life length. This should mean the local weather is
+        # always cached, making for a snappy response.
         self.prime_weather_cache()
         self.cancel_scheduled_event("precache1")
-        self.cancel_scheduled_event("precache2")
-        self.cancel_scheduled_event("precache3")
+        #self.cancel_scheduled_event("precache2")
+        #self.cancel_scheduled_event("precache3")
         self.schedule_repeating_event(self.prime_weather_cache, None,
-                                      60*60*24,         # One day in seconds
+                                      60*60,         # One hour in seconds
                                       name="precache1")
-        self.schedule_repeating_event(self.prime_weather_cache, None,
-                                      60*60*24-60*15,   # One day - 15 minutes
-                                      name="precache2")
-        self.schedule_repeating_event(self.prime_weather_cache, None,
-                                      60*60*24+60*15,   # One day + 15 minutes
-                                      name="precache3")
+        #self.schedule_repeating_event(self.prime_weather_cache, None,
+        #                              60*60*24-60*15,   # One day - 15 minutes
+        #                              name="precache2")
+        #self.schedule_repeating_event(self.prime_weather_cache, None,
+        #                              60*60*24+60*15,   # One day + 15 minutes
+        #                              name="precache3")
 
     def handle_collect_request(self, message):
         self.bus.emit(Message('mycroft.mark2.register_idle',
